@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
