@@ -21,22 +21,46 @@ public class ImageManager
     {
         var result = await RunDismAsync($"/Get-WimInfo /WimFile:\"{wimPath}\"");
         var images = new List<ImageInfo>();
-        var lines = result.Split('\n');
+        var lines = result.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
         int currentIndex = 0;
         string? currentName = null;
 
         foreach (var line in lines)
         {
-            if (line.TrimStart().StartsWith("Index :"))
+            var trimmed = line.TrimStart();
+            
+            // 支持中英文: "Index :" / "索引 :"
+            if (trimmed.StartsWith("Index :", StringComparison.OrdinalIgnoreCase) ||
+                trimmed.StartsWith("索引 :", StringComparison.OrdinalIgnoreCase))
             {
-                int.TryParse(line.Split(':')[1].Trim(), out currentIndex);
+                var parts = line.Split(':');
+                if (parts.Length >= 2 && int.TryParse(parts[1].Trim(), out var idx))
+                {
+                    currentIndex = idx;
+                }
             }
-            else if (line.TrimStart().StartsWith("Name :"))
+            // 支持中英文: "Name :" / "名称 :"
+            else if (trimmed.StartsWith("Name :", StringComparison.OrdinalIgnoreCase) ||
+                     trimmed.StartsWith("名称 :", StringComparison.OrdinalIgnoreCase))
             {
-                currentName = line.Split(':')[1].Trim();
-                images.Add(new ImageInfo { Index = currentIndex, Name = currentName });
+                var parts = line.Split(':');
+                if (parts.Length >= 2)
+                {
+                    currentName = parts[1].Trim();
+                    if (currentIndex > 0 && !string.IsNullOrEmpty(currentName))
+                    {
+                        images.Add(new ImageInfo { Index = currentIndex, Name = currentName });
+                    }
+                }
             }
         }
+        
+        // 如果解析失败，至少返回一个默认版本
+        if (images.Count == 0)
+        {
+            images.Add(new ImageInfo { Index = 1, Name = "默认版本 (Index 1)" });
+        }
+        
         return images;
     }
 

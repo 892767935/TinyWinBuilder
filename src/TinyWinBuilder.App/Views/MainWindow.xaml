@@ -60,7 +60,6 @@
 
                         <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                             <Button x:Name="MountBtn" Content="挂载镜像" Click="Mount_Click" Padding="20,6" Background="#1976D2" Foreground="White"/>
-                            <Button x:Name="UnmountBtn" Content="卸载并提交" Click="Unmount_Click" Margin="8,0,0,0" Padding="20,6" IsEnabled="False"/>
                         </StackPanel>
                     </StackPanel>
 
@@ -135,8 +134,12 @@
                         <TextBlock Text="确认所有设置后，点击下方按钮执行所有修改" Foreground="#888" Margin="0,0,0,16"/>
                         <Button Content="开始应用所有更改" Click="Apply_Click" Padding="30,10" Background="#4CAF50" Foreground="White" FontWeight="Bold" Margin="0,0,0,20"/>
                         
+                        <TextBlock Text="卸载并保存" FontSize="16" FontWeight="SemiBold" Margin="0,24,0,8"/>
+                        <TextBlock Text="应用更改完成后，点击下方按钮卸载镜像并保存所有修改" Foreground="#888" Margin="0,0,0,12"/>
+                        <Button x:Name="UnmountBtn" Content="卸载并提交更改" Click="Unmount_Click" Padding="30,10" Background="#FF9800" Foreground="White" FontWeight="Bold" IsEnabled="False"/>
+                        
                         <TextBlock Text="导出镜像" FontSize="16" FontWeight="SemiBold" Margin="0,24,0,8"/>
-                        <TextBlock Text="应用更改并卸载后，点击下方按钮导出精简后的镜像" Foreground="#888" Margin="0,0,0,12"/>
+                        <TextBlock Text="卸载完成后，点击下方按钮导出精简后的镜像" Foreground="#888" Margin="0,0,0,12"/>
                         <StackPanel Orientation="Horizontal">
                             <Button Content="导出精简后的 WIM" Click="ExportWim_Click" Padding="20,6" Margin="0,0,8,0"/>
                             <Button Content="导出精简后的 ISO" Click="ExportIso_Click" Padding="20,6" Background="#1976D2" Foreground="White"/>
