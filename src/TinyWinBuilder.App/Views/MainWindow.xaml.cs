@@ -123,6 +123,7 @@ public partial class MainWindow : Window
                 }
                 
                 Log($"找到镜像文件: {wimPath}");
+                _originalWimPath = wimPath;
                 Log("正在读取镜像版本列表...");
                 
                 var images = await _imageMgr.GetImageIndexesAsync(wimPath);
@@ -139,6 +140,7 @@ public partial class MainWindow : Window
             else if (ext == ".wim")
             {
                 Log("正在挂载 WIM 镜像...");
+                _originalWimPath = WimPathBox.Text;
                 var images = await _imageMgr.GetImageIndexesAsync(WimPathBox.Text);
                 ImageIndexCombo.ItemsSource = images;
                 ImageIndexCombo.DisplayMemberPath = "Name";
@@ -295,6 +297,242 @@ try {
         finally
         {
             ApplyPanel.IsEnabled = true;
+        }
+    }
+
+    private string? _originalWimPath;
+
+    private async void ExportWim_Click(object sender, RoutedEventArgs e)
+    {
+        if (_imageMgr.IsMounted)
+        {
+            MessageBox.Show("请先卸载镜像并提交更改！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_originalWimPath))
+        {
+            MessageBox.Show("没有找到原始镜像路径。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var dlg = new SaveFileDialog { Filter = "WIM 镜像|*.wim", FileName = "TinyWin10.wim" };
+            if (dlg.ShowDialog() != true) return;
+
+            Log($"正在导出精简后的 WIM 到: {dlg.FileName}");
+            ApplyPanel.IsEnabled = false;
+
+            // 用 DISM 导出 WIM
+            var psi = new ProcessStartInfo
+            {
+                FileName = "dism.exe",
+                Arguments = $"/Export-Image /SourceImageFile:\"{_originalWimPath}\" /SourceIndex:1 /DestinationImageFile:\"{dlg.FileName}\" /Compress:max",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true
+            };
+
+            var process = Process.Start(psi)!;
+            var output = await process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode == 0)
+            {
+                Log("✅ WIM 导出成功！");
+                MessageBox.Show("WIM 导出成功！\n\n你可以用这个精简版 WIM 制作新的 ISO。", 
+                    "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                Log($"导出失败: {output}");
+                MessageBox.Show($"导出失败，退出码: {process.ExitCode}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"导出失败: {ex.Message}");
+            MessageBox.Show($"导出失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            ApplyPanel.IsEnabled = true;
+        }
+    }
+
+    private async void ExportIso_Click(object sender, RoutedEventArgs e)
+    {
+        if (_imageMgr.IsMounted)
+        {
+            MessageBox.Show("请先卸载镜像并提交更改！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        if (string.IsNullOrEmpty(_originalWimPath))
+        {
+            MessageBox.Show("没有找到原始镜像路径。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            var dlg = new SaveFileDialog { Filter = "ISO 镜像|*.iso", FileName = "TinyWin10.iso" };
+            if (dlg.ShowDialog() != true) return;
+
+            Log("正在准备导出 ISO...");
+            Log("步骤 1: 导出精简后的 WIM...");
+            
+            // 先导出 WIM 到临时目录
+            var tempWim = Path.Combine(Path.GetTempPath(), "TinyWin_export.wim");
+            
+            var psi = new ProcessStartInfo
+            {
+                FileName = "dism.exe",
+                Arguments = $"/Export-Image /SourceImageFile:\"{_originalWimPath}\" /SourceIndex:1 /DestinationImageFile:\"{tempWim}\" /Compress:max",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true
+            };
+
+            var process = Process.Start(psi)!;
+            await process.WaitForExitAsync();
+
+            if (process.ExitCode != 0)
+            {
+                Log("WIM 导出失败");
+                return;
+            }
+
+            Log("步骤 2: 复制原始 ISO 文件...");
+            
+            // 从原始 ISO 复制文件到临时目录
+            var isoExtractDir = Path.Combine(Path.GetTempPath(), "TinyWin_ISO");
+            if (Directory.Exists(isoExtractDir))
+            {
+                Directory.Delete(isoExtractDir, true);
+            }
+            Directory.CreateDirectory(isoExtractDir);
+
+            // 挂载原始 ISO
+            Log("正在挂载原始 ISO...");
+            var mountScript = $"Mount-DiskImage -ImagePath '{WimPathBox.Text}' | Get-Volume | Select-Object -ExpandProperty DriveLetter";
+            var mountPsi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -Command \"{mountScript}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true
+            };
+            var mountProcess = Process.Start(mountPsi)!;
+            var driveLetter = (await mountProcess.StandardOutput.ReadToEndAsync()).Trim();
+            await mountProcess.WaitForExitAsync();
+
+            if (string.IsNullOrEmpty(driveLetter))
+            {
+                Log("无法挂载原始 ISO");
+                return;
+            }
+
+            Log($"ISO 已挂载到 {driveLetter}:");
+
+            // 复制文件
+            Log("正在复制 ISO 文件...");
+            var sourceDir = $"{driveLetter}:\\";
+            CopyDirectory(sourceDir, isoExtractDir);
+
+            // 替换 install.wim
+            Log("正在替换 install.wim...");
+            var targetWim = Path.Combine(isoExtractDir, "sources", "install.wim");
+            if (File.Exists(targetWim))
+            {
+                File.Delete(targetWim);
+            }
+            File.Copy(tempWim, targetWim);
+
+            // 卸载 ISO
+            Log("正在卸载原始 ISO...");
+            var unmountScript = $"Dismount-DiskImage -ImagePath '{WimPathBox.Text}'";
+            var unmountPsi = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = $"-NoProfile -Command \"{unmountScript}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            Process.Start(unmountPsi)!.WaitForExit();
+
+            // 生成新 ISO（使用 oscdimg，如果没有就提示）
+            Log("正在生成新 ISO...");
+            Log("（注意：需要 Windows ADK 的 oscdimg 工具）");
+            
+            // 检查 oscdimg 是否存在
+            var oscdimgPaths = new[]
+            {
+                @"C:\Program Files (x86)\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe",
+                @"C:\Program Files\Windows Kits\10\Assessment and Deployment Kit\Deployment Tools\amd64\Oscdimg\oscdimg.exe"
+            };
+
+            var oscdimgPath = oscdimgPaths.FirstOrDefault(p => File.Exists(p));
+            
+            if (oscdimgPath == null)
+            {
+                Log("❌ 未找到 oscdimg 工具");
+                Log("请安装 Windows ADK，或者手动用 UltraISO 等工具制作 ISO");
+                Log($"ISO 文件已准备好: {isoExtractDir}");
+                MessageBox.Show("未找到 oscdimg 工具。\n\nISO 文件已准备好到临时目录，你可以手动用 UltraISO 等工具制作 ISO。", 
+                    "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var etfsboot = Path.Combine(isoExtractDir, "boot", "etfsboot.com");
+            var isoLabel = "TinyWin10";
+            
+            var isoPsi = new ProcessStartInfo
+            {
+                FileName = oscdimgPath,
+                Arguments = $"-m -o -u2 -udfver102 -b\"{etfsboot}\" \"{isoExtractDir}\" \"{dlg.FileName}\"",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true
+            };
+
+            var isoProcess = Process.Start(isoPsi)!;
+            await isoProcess.WaitForExitAsync();
+
+            if (isoProcess.ExitCode == 0)
+            {
+                Log("✅ ISO 导出成功！");
+                MessageBox.Show("ISO 导出成功！\n\n精简后的 ISO 已保存到你选择的位置。", 
+                    "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            else
+            {
+                Log("ISO 生成失败");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"导出 ISO 失败: {ex.Message}");
+            MessageBox.Show($"导出 ISO 失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    private void CopyDirectory(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+        
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var destFile = Path.Combine(destDir, Path.GetFileName(file));
+            File.Copy(file, destFile, true);
+        }
+        
+        foreach (var dir in Directory.GetDirectories(sourceDir))
+        {
+            var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
+            CopyDirectory(dir, destSubDir);
         }
     }
 
