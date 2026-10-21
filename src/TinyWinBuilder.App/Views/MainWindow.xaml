@@ -34,7 +34,6 @@
                 <ListBoxItem Content="预装应用" Padding="16,12"/>
                 <ListBoxItem Content="系统功能" Padding="16,12"/>
                 <ListBoxItem Content="注册表 Tweaks" Padding="16,12"/>
-                <ListBoxItem Content="自动部署" Padding="16,12"/>
                 <ListBoxItem Content="应用更改" Padding="16,12"/>
             </ListBox>
 
@@ -102,30 +101,6 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                    </StackPanel>
-
-                    <!-- 自动部署页 -->
-                    <StackPanel x:Name="UnattendedPanel" Visibility="Collapsed">
-                        <TextBlock Text="自动部署应答文件" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
-                        <Grid Margin="0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="100"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                                <RowDefinition/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="用户名:" VerticalAlignment="Center" Margin="0,4"/>
-                            <TextBox x:Name="UaUsername" Text="User" Grid.Column="1" Margin="0,2" Padding="4,2"/>
-                            <TextBlock Text="自动登录:" Grid.Row="1" VerticalAlignment="Center" Margin="0,4"/>
-                            <TextBox x:Name="UaAutoLogin" Text="1" Grid.Row="1" Grid.Column="1" Margin="0,2" Padding="4,2"/>
-                        </Grid>
-                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                            <Button Content="预览 XML" Click="PreviewUnattended_Click" Padding="16,4" Margin="0,0,8,0"/>
-                            <Button Content="保存 autounattend.xml" Click="SaveUnattended_Click" Padding="16,4" Background="#1976D2" Foreground="White"/>
-                        </StackPanel>
                     </StackPanel>
 
                     <!-- 应用更改页 -->

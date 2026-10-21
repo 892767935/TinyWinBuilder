@@ -20,6 +20,7 @@ public partial class MainWindow : Window
 
     public List<AppItem> Apps { get; set; } = new()
     {
+        new() { Id = "Microsoft.WindowsStore", Name = "Microsoft 应用商店" },
         new() { Id = "Microsoft.GamingApp", Name = "Xbox 应用" },
         new() { Id = "Microsoft.BingNews", Name = "Bing 新闻" },
         new() { Id = "Microsoft.BingWeather", Name = "Bing 天气" },
@@ -32,6 +33,15 @@ public partial class MainWindow : Window
         new() { Id = "Microsoft.Getstarted", Name = "入门应用" },
         new() { Id = "Microsoft.YourPhone", Name = "手机连接" },
         new() { Id = "Microsoft.MicrosoftSolitaireCollection", Name = "纸牌游戏" },
+        new() { Id = "Microsoft.OneDrive", Name = "OneDrive" },
+        new() { Id = "Microsoft.WindowsCamera", Name = "相机" },
+        new() { Id = "Microsoft.WindowsMaps", Name = "地图" },
+        new() { Id = "Microsoft.WindowsSoundRecorder", Name = "语音录音机" },
+        new() { Id = "Microsoft.MicrosoftStickyNotes", Name = "便签" },
+        new() { Id = "Microsoft.MicrosoftOfficeHub", Name = "Office 中心" },
+        new() { Id = "Microsoft.Office.OneNote", Name = "OneNote" },
+        new() { Id = "Microsoft.3DBuilder", Name = "3D 编辑器" },
+        new() { Id = "Microsoft.MixedReality.Portal", Name = "混合现实门户" },
     };
 
     public List<FeatureItem> Features { get; set; } = new()
@@ -67,10 +77,10 @@ public partial class MainWindow : Window
         if (NavList.SelectedItem is not ListBoxItem) return;
         
         if (ImagePanel == null || AppsPanel == null || FeaturesPanel == null || 
-            TweaksPanel == null || UnattendedPanel == null || ApplyPanel == null)
+            TweaksPanel == null || ApplyPanel == null)
             return;
 
-        var panels = new[] { ImagePanel, AppsPanel, FeaturesPanel, TweaksPanel, UnattendedPanel, ApplyPanel };
+        var panels = new[] { ImagePanel, AppsPanel, FeaturesPanel, TweaksPanel, ApplyPanel };
         foreach (var p in panels) p.Visibility = Visibility.Collapsed;
 
         var idx = NavList.SelectedIndex;
@@ -691,52 +701,6 @@ try {
         {
             var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
             CopyDirectory(dir, destSubDir);
-        }
-    }
-
-    private void PreviewUnattended_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var settings = new UnattendedSettings
-            {
-                Username = UaUsername.Text,
-                AutoLoginCount = int.TryParse(UaAutoLogin.Text, out var count) ? count : 1
-            };
-            var xml = UnattendedGenerator.Generate(settings);
-            Log("自动部署 XML 预览...");
-            MessageBox.Show(xml, "autounattend.xml 预览", MessageBoxButton.OK, MessageBoxImage.Information);
-        }
-        catch (Exception ex)
-        {
-            Log($"预览失败: {ex.Message}");
-        }
-    }
-
-    private void SaveUnattended_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            var settings = new UnattendedSettings
-            {
-                Username = UaUsername.Text,
-                AutoLoginCount = int.TryParse(UaAutoLogin.Text, out var count) ? count : 1
-            };
-            var xml = UnattendedGenerator.Generate(settings);
-            
-            var dlg = new SaveFileDialog { Filter = "XML 文件|*.xml", FileName = "autounattend.xml" };
-            if (dlg.ShowDialog() == true)
-            {
-                File.WriteAllText(dlg.FileName, xml);
-                Log($"自动部署文件已保存: {dlg.FileName}");
-                MessageBox.Show("自动部署文件已保存！\n\n将此文件放在 ISO 根目录下即可实现无人值守安装。", 
-                    "完成", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"保存失败: {ex.Message}");
-            MessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 
