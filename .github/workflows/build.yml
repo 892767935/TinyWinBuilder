@@ -23,7 +23,14 @@ jobs:
             --self-contained true `
             -p:PublishSingleFile=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:IncludeAllContentForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=none `
+            -p:CopyOutputSymbolsToPublishDirectory=false `
             -o publish/win-x64
+
+      - name: List output
+        run: dir publish/win-x64
 
       - name: Zip
         run: Compress-Archive -Path publish/win-x64/* -DestinationPath publish/TinyWinBuilder-win-x64.zip
