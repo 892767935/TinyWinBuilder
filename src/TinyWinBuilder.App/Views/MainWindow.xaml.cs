@@ -447,14 +447,26 @@ try {
 
             if (process.ExitCode == 0)
             {
-                Log("✅ WIM 导出成功！");
-                MessageBox.Show("WIM 导出成功！\n\n你可以用这个精简版 WIM 制作新的 ISO。", 
-                    "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                // 验证文件是否真的生成了
+                if (File.Exists(dlg.FileName))
+                {
+                    var fileInfo = new FileInfo(dlg.FileName);
+                    var sizeMB = fileInfo.Length / 1024 / 1024;
+                    Log($"✅ WIM 导出成功！文件大小: {sizeMB:F1} MB");
+                    MessageBox.Show($"WIM 导出成功！\n\n文件: {dlg.FileName}\n大小: {sizeMB:F1} MB", 
+                        "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                else
+                {
+                    Log("❌ 导出命令返回成功，但文件不存在！");
+                    MessageBox.Show("导出失败：文件未生成！", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
             else
             {
-                Log($"导出失败: {output}");
-                MessageBox.Show($"导出失败，退出码: {process.ExitCode}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                Log($"导出失败，退出码: {process.ExitCode}");
+                Log($"错误输出: {output}");
+                MessageBox.Show($"导出失败，退出码: {process.ExitCode}\n\n请查看日志了解详情。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         catch (Exception ex)
