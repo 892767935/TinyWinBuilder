@@ -1,4 +1,4 @@
-<Window x:Class="TinyWinBuilder.App.MainWindow"
+<Window x:Class="TinyWinBuilder.App.Views.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="TinyWin Builder - 离线 Windows 精简工具"

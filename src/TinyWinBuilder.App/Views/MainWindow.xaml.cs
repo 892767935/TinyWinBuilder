@@ -1,13 +1,16 @@
+using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using TinyWinBuilder.Core;
+using Microsoft.Win32;
+using TinyWinBuilder.Core.Imaging;
+using TinyWinBuilder.Core.Unattended;
 
-namespace TinyWinBuilder.App;
+namespace TinyWinBuilder.App.Views;
 
 public partial class MainWindow : Window
 {

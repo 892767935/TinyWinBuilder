@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace TinyWinBuilder.Core;
+namespace TinyWinBuilder.Core.Unattended;
 
 /// <summary>
 /// 生成 Unattended 自动应答文件

@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace TinyWinBuilder.Core;
+namespace TinyWinBuilder.Core.Imaging;
 
 /// <summary>
 /// 离线 Windows 镜像管理（DISM 封装）
