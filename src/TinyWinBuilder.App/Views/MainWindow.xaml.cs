@@ -411,6 +411,8 @@ try {
 
             Log($"正在导出精简后的 WIM 到: {dlg.FileName}");
             ApplyPanel.IsEnabled = false;
+            ExportProgressBar.Visibility = Visibility.Visible;
+            ExportProgressBar.Value = 0;
 
             // 用 DISM 导出 WIM
             var psi = new ProcessStartInfo
@@ -423,8 +425,25 @@ try {
             };
 
             var process = Process.Start(psi)!;
-            var output = await process.StandardOutput.ReadToEndAsync();
+            
+            // 实时读取输出，更新进度条
+            var outputBuilder = new System.Text.StringBuilder();
+            while (!process.StandardOutput.EndOfStream)
+            {
+                var line = await process.StandardOutput.ReadLineAsync();
+                outputBuilder.AppendLine(line);
+                
+                // 解析百分比，比如 "[==========================10.0%==========================]"
+                var match = System.Text.RegularExpressions.Regex.Match(line, @"(\d+(?:\.\d+)?)%");
+                if (match.Success && double.TryParse(match.Groups[1].Value, out var percent))
+                {
+                    ExportProgressBar.Value = percent;
+                    Log($"导出进度: {percent:F1}%");
+                }
+            }
+            
             await process.WaitForExitAsync();
+            var output = outputBuilder.ToString();
 
             if (process.ExitCode == 0)
             {
@@ -446,6 +465,7 @@ try {
         finally
         {
             ApplyPanel.IsEnabled = true;
+            ExportProgressBar.Visibility = Visibility.Collapsed;
         }
     }
 

@@ -159,6 +159,7 @@
                                     <Button x:Name="ExportWimBtn" Content="导出 WIM" Click="ExportWim_Click" Padding="20,6" Margin="0,0,8,0" IsEnabled="False"/>
                                     <Button x:Name="ExportIsoBtn" Content="导出 ISO" Click="ExportIso_Click" Padding="20,6" Background="#1976D2" Foreground="White" IsEnabled="False"/>
                                 </StackPanel>
+                                <ProgressBar x:Name="ExportProgressBar" Height="8" Margin="0,8,0,0" Visibility="Collapsed"/>
                             </StackPanel>
                         </Border>
                         
