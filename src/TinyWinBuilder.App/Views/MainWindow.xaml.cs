@@ -125,11 +125,26 @@ public partial class MainWindow : Window
                 
                 // 把 WIM 复制到本地磁盘（ISO 是只读的）
                 Log("正在将 WIM 复制到本地磁盘...");
-                _localWimPath = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_install.wim");
+                // 使用桌面目录，避免 Temp 目录权限问题
+                var workDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "TinyWinBuilder_Work");
+                if (!Directory.Exists(workDir))
+                {
+                    Directory.CreateDirectory(workDir);
+                }
+                _localWimPath = Path.Combine(workDir, "install.wim");
                 
+                // 如果文件已存在，先尝试删除
                 if (File.Exists(_localWimPath))
                 {
-                    File.Delete(_localWimPath);
+                    try
+                    {
+                        File.Delete(_localWimPath);
+                    }
+                    catch
+                    {
+                        // 如果删除失败，用新文件名
+                        _localWimPath = Path.Combine(workDir, $"install_{DateTime.Now:yyyyMMdd_HHmmss}.wim");
+                    }
                 }
                 
                 var fileInfo = new FileInfo(isoWimPath);
@@ -182,10 +197,11 @@ public partial class MainWindow : Window
             
             Log($"正在挂载 WIM 镜像: {imageName} (Index: {imageIndex})...");
             
-            var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
+            var workDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "TinyWinBuilder_Work");
+            var mountDir = Path.Combine(workDir, "Mount");
             if (Directory.Exists(mountDir))
             {
-                Directory.Delete(mountDir, true);
+                try { Directory.Delete(mountDir, true); } catch { }
             }
             Directory.CreateDirectory(mountDir);
             
