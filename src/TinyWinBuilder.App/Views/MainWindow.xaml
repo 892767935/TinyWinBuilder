@@ -16,6 +16,8 @@
         <Grid Grid.Row="0" Height="50" Background="#1976D2">
             <TextBlock Text="TinyWin Builder" Foreground="White" FontSize="18" FontWeight="Bold"
                        VerticalAlignment="Center" Margin="16,0,0,0"/>
+            <TextBlock Text="离线 Windows 镜像精简工具" Foreground="#BBDEFB" FontSize="12"
+                       VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,16,0"/>
         </Grid>
 
         <!-- 主内容区 -->
@@ -26,7 +28,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- 左侧导航 -->
-            <ListBox x:Name="NavList" Grid.Column="0"
+            <ListBox x:Name="NavList" Grid.Column="0" SelectionChanged="NavList_SelectionChanged"
                      Background="#FFFFFF" BorderThickness="0,0,1,0" BorderBrush="#E0E0E0">
                 <ListBoxItem Content="图像" IsSelected="True" Padding="16,12"/>
                 <ListBoxItem Content="预装应用" Padding="16,12"/>
@@ -38,7 +40,102 @@
 
             <!-- 右侧内容 -->
             <ScrollViewer Grid.Column="1" Padding="20">
-                <TextBlock Text="功能区" FontSize="20"/>
+                <Grid>
+                    <!-- 图像页 -->
+                    <StackPanel x:Name="ImagePanel">
+                        <TextBlock Text="离线镜像管理" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+                        
+                        <TextBlock Text="1. 选择 WIM 镜像文件" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="WimPathBox" IsReadOnly="True" Padding="6,4"/>
+                            <Button Content="浏览..." Click="BrowseWim_Click" Grid.Column="1" Margin="8,0,0,0" Padding="16,4"/>
+                        </Grid>
+
+                        <TextBlock Text="2. 选择镜像版本" FontWeight="SemiBold" Margin="0,8,0,4"/>
+                        <ComboBox x:Name="ImageIndexCombo" Margin="0,0,0,12" MinWidth="300"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button x:Name="MountBtn" Content="挂载镜像" Click="Mount_Click" Padding="20,6" Background="#1976D2" Foreground="White"/>
+                            <Button x:Name="UnmountBtn" Content="卸载并提交" Click="Unmount_Click" Margin="8,0,0,0" Padding="20,6" IsEnabled="False"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 应用页 -->
+                    <StackPanel x:Name="AppsPanel" Visibility="Collapsed">
+                        <TextBlock Text="预装应用管理" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+                        <TextBlock Text="勾选要移除的预装 UWP 应用（挂载镜像后可用）" Foreground="#888" Margin="0,0,0,12"/>
+                        <ItemsControl x:Name="AppsList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="0,4" FontSize="13"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- 功能页 -->
+                    <StackPanel x:Name="FeaturesPanel" Visibility="Collapsed">
+                        <TextBlock Text="系统功能" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+                        <TextBlock Text="禁用不需要的 Windows 可选功能" Foreground="#888" Margin="0,0,0,12"/>
+                        <ItemsControl x:Name="FeaturesList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="0,4" FontSize="13"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- 注册表 Tweaks 页 -->
+                    <StackPanel x:Name="TweaksPanel" Visibility="Collapsed">
+                        <TextBlock Text="注册表 Tweaks" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+                        <ItemsControl x:Name="TweaksList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,6">
+                                        <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" FontSize="13"/>
+                                        <TextBlock Text="{Binding Desc}" FontSize="11" Foreground="#999" Margin="24,2,0,0"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+
+                    <!-- 自动部署页 -->
+                    <StackPanel x:Name="UnattendedPanel" Visibility="Collapsed">
+                        <TextBlock Text="自动部署应答文件" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+                        <Grid Margin="0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Text="用户名:" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox x:Name="UaUsername" Text="User" Grid.Column="1" Margin="0,2" Padding="4,2"/>
+                            <TextBlock Text="自动登录:" Grid.Row="1" VerticalAlignment="Center" Margin="0,4"/>
+                            <TextBox x:Name="UaAutoLogin" Text="1" Grid.Row="1" Grid.Column="1" Margin="0,2" Padding="4,2"/>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                            <Button Content="预览 XML" Click="PreviewUnattended_Click" Padding="16,4" Margin="0,0,8,0"/>
+                            <Button Content="保存 autounattend.xml" Click="SaveUnattended_Click" Padding="16,4" Background="#1976D2" Foreground="White"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- 应用更改页 -->
+                    <StackPanel x:Name="ApplyPanel" Visibility="Collapsed">
+                        <TextBlock Text="应用更改" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+                        <TextBlock Text="确认所有设置后，点击下方按钮执行所有修改" Foreground="#888" Margin="0,0,0,16"/>
+                        <Button Content="开始应用所有更改" Click="Apply_Click" Padding="30,10" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
+                    </StackPanel>
+                </Grid>
             </ScrollViewer>
         </Grid>
 
