@@ -290,6 +290,31 @@ try {
         }
     }
 
+    private async void Commit_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_imageMgr.IsMounted)
+        {
+            MessageBox.Show("请先挂载镜像并应用更改！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            Log("正在提交更改（卸载并保存）...");
+            await _imageMgr.UnmountAsync(true);
+            Log("更改已提交到 WIM 镜像文件！");
+            Log("现在可以导出精简后的镜像了。");
+            
+            // 启用导出按钮
+            // TODO: 找到导出按钮并启用
+        }
+        catch (Exception ex)
+        {
+            Log($"提交失败: {ex.Message}");
+            MessageBox.Show($"提交失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private async void Apply_Click(object sender, RoutedEventArgs e)
     {
         if (!_imageMgr.IsMounted)
