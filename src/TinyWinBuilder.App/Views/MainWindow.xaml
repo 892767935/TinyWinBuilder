@@ -66,6 +66,11 @@
                     <StackPanel x:Name="AppsPanel" Visibility="Collapsed">
                         <TextBlock Text="预装应用管理" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
                         <TextBlock Text="勾选要移除的预装 UWP 应用（挂载镜像后可用）" Foreground="#888" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Content="全选" Click="SelectAllApps_Click" Padding="16,4" Margin="0,0,8,0"/>
+                            <Button Content="反选" Click="InvertApps_Click" Padding="16,4" Margin="0,0,8,0"/>
+                            <Button Content="清空" Click="ClearApps_Click" Padding="16,4"/>
+                        </StackPanel>
                         <ItemsControl x:Name="AppsList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
@@ -79,6 +84,11 @@
                     <StackPanel x:Name="FeaturesPanel" Visibility="Collapsed">
                         <TextBlock Text="系统功能" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
                         <TextBlock Text="禁用不需要的 Windows 可选功能" Foreground="#888" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <Button Content="全选" Click="SelectAllFeatures_Click" Padding="16,4" Margin="0,0,8,0"/>
+                            <Button Content="反选" Click="InvertFeatures_Click" Padding="16,4" Margin="0,0,8,0"/>
+                            <Button Content="清空" Click="ClearFeatures_Click" Padding="16,4"/>
+                        </StackPanel>
                         <ItemsControl x:Name="FeaturesList">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>

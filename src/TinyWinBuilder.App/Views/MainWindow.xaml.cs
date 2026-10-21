@@ -20,28 +20,45 @@ public partial class MainWindow : Window
 
     public List<AppItem> Apps { get; set; } = new()
     {
-        new() { Id = "Microsoft.WindowsStore", Name = "Microsoft 应用商店" },
-        new() { Id = "Microsoft.GamingApp", Name = "Xbox 应用" },
-        new() { Id = "Microsoft.BingNews", Name = "Bing 新闻" },
-        new() { Id = "Microsoft.BingWeather", Name = "Bing 天气" },
-        new() { Id = "Microsoft.BingSearch", Name = "Bing 搜索" },
+        // 社交和通讯
         new() { Id = "microsoft.windowscommunicationsapps", Name = "邮件和日历" },
         new() { Id = "Microsoft.People", Name = "人脉" },
         new() { Id = "Microsoft.SkypeApp", Name = "Skype" },
-        new() { Id = "Microsoft.WindowsFeedbackHub", Name = "反馈中心" },
-        new() { Id = "Microsoft.GetHelp", Name = "获取帮助" },
-        new() { Id = "Microsoft.Getstarted", Name = "入门应用" },
         new() { Id = "Microsoft.YourPhone", Name = "手机连接" },
+        
+        // 娱乐和游戏
+        new() { Id = "Microsoft.GamingApp", Name = "Xbox 应用" },
         new() { Id = "Microsoft.MicrosoftSolitaireCollection", Name = "纸牌游戏" },
+        new() { Id = "Microsoft.BingNews", Name = "Bing 新闻" },
+        new() { Id = "Microsoft.BingWeather", Name = "Bing 天气" },
+        new() { Id = "Microsoft.BingSearch", Name = "Bing 搜索" },
+        new() { Id = "Microsoft.MixedReality.Portal", Name = "混合现实门户" },
+        
+        // 生产力工具
+        new() { Id = "Microsoft.Office.OneNote", Name = "OneNote" },
+        new() { Id = "Microsoft.MicrosoftOfficeHub", Name = "Office 中心" },
+        new() { Id = "Microsoft.MicrosoftStickyNotes", Name = "便签" },
+        new() { Id = "Microsoft.Getstarted", Name = "入门应用" },
+        new() { Id = "Microsoft.GetHelp", Name = "获取帮助" },
+        new() { Id = "Microsoft.WindowsFeedbackHub", Name = "反馈中心" },
+        
+        // 系统工具
+        new() { Id = "Microsoft.WindowsStore", Name = "Microsoft 应用商店" },
         new() { Id = "Microsoft.OneDrive", Name = "OneDrive" },
         new() { Id = "Microsoft.WindowsCamera", Name = "相机" },
         new() { Id = "Microsoft.WindowsMaps", Name = "地图" },
         new() { Id = "Microsoft.WindowsSoundRecorder", Name = "语音录音机" },
-        new() { Id = "Microsoft.MicrosoftStickyNotes", Name = "便签" },
-        new() { Id = "Microsoft.MicrosoftOfficeHub", Name = "Office 中心" },
-        new() { Id = "Microsoft.Office.OneNote", Name = "OneNote" },
         new() { Id = "Microsoft.3DBuilder", Name = "3D 编辑器" },
-        new() { Id = "Microsoft.MixedReality.Portal", Name = "混合现实门户" },
+        
+        // 其他常见预装
+        new() { Id = "Microsoft.MicrosoftEdge", Name = "Microsoft Edge（不推荐）" },
+        new() { Id = "MicrosoftCorporationII.MicrosoftFamily", Name = "Microsoft 家庭" },
+        new() { Id = "MicrosoftCorporationII.QuickAssist", Name = "快速助手" },
+        new() { Id = "Microsoft.HEIFImageExtension", Name = "HEIF 图像扩展" },
+        new() { Id = "Microsoft.VP9VideoExtensions", Name = "VP9 视频扩展" },
+        new() { Id = "Microsoft.WebMediaExtensions", Name = "Web 媒体扩展" },
+        new() { Id = "Microsoft.WebpImageExtension", Name = "WebP 图像扩展" },
+        new() { Id = "Microsoft.RawImageExtension", Name = "Raw 图像扩展" },
     };
 
     public List<FeatureItem> Features { get; set; } = new()
@@ -702,6 +719,38 @@ try {
             var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
             CopyDirectory(dir, destSubDir);
         }
+    }
+
+    // 预装应用的全选/反选/清空
+    private void SelectAllApps_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var app in Apps) app.IsChecked = true;
+    }
+
+    private void InvertApps_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var app in Apps) app.IsChecked = !app.IsChecked;
+    }
+
+    private void ClearApps_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var app in Apps) app.IsChecked = false;
+    }
+
+    // 系统功能的全选/反选/清空
+    private void SelectAllFeatures_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var f in Features) f.IsChecked = true;
+    }
+
+    private void InvertFeatures_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var f in Features) f.IsChecked = !f.IsChecked;
+    }
+
+    private void ClearFeatures_Click(object sender, RoutedEventArgs e)
+    {
+        foreach (var f in Features) f.IsChecked = false;
     }
 
     private void Log(string msg)
