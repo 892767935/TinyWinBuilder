@@ -305,8 +305,9 @@ try {
             Log("更改已提交到 WIM 镜像文件！");
             Log("现在可以导出精简后的镜像了。");
             
-            // 启用导出按钮
-            // TODO: 找到导出按钮并启用
+            // 启用导出按钮和卸载按钮
+            UnmountBtn.IsEnabled = true;
+            // TODO: 启用导出按钮
         }
         catch (Exception ex)
         {
@@ -351,9 +352,13 @@ try {
             await _imageMgr.CleanupImageAsync();
             Log("组件清理完成。");
 
-            Log("✅ 所有更改已应用！请点击「卸载并提交」保存更改。");
-            MessageBox.Show("所有更改已应用！\n\n请点击「图像」页面的「卸载并提交」按钮保存更改。", 
+            Log("✅ 所有更改已应用！");
+            Log("请点击「步骤 2：提交更改」按钮保存修改。");
+            MessageBox.Show("所有更改已应用！\n\n请点击「步骤 2：提交更改」按钮保存修改。", 
                 "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            
+            // 启用提交按钮
+            CommitBtn.IsEnabled = true;
         }
         catch (Exception ex)
         {
