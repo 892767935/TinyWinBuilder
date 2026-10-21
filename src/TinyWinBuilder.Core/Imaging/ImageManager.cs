@@ -21,37 +21,27 @@ public class ImageManager
     {
         var result = await RunDismAsync($"/Get-WimInfo /WimFile:\"{wimPath}\"");
         var images = new List<ImageInfo>();
-        var lines = result.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
-        int currentIndex = 0;
-        string? currentName = null;
-
-        foreach (var line in lines)
+        
+        // 输出调试信息
+        System.Diagnostics.Debug.WriteLine("DISM 输出: " + result);
+        
+        // 用正则表达式匹配，更宽松
+        // 匹配 "Index : 1" 或 "索引 : 1" 或 "Index: 1"
+        var indexMatches = System.Text.RegularExpressions.Regex.Matches(result, @"(?:Index|索引)\s*[:：]\s*(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // 匹配 "Name : xxx" 或 "名称 : xxx"
+        var nameMatches = System.Text.RegularExpressions.Regex.Matches(result, @"(?:Name|名称)\s*[:：]\s*(.+?)(?:\r\n|\n|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        
+        // 配对 Index 和 Name
+        for (int i = 0; i < indexMatches.Count; i++)
         {
-            var trimmed = line.TrimStart();
-            
-            // 支持中英文: "Index :" / "索引 :"
-            if (trimmed.StartsWith("Index :", StringComparison.OrdinalIgnoreCase) ||
-                trimmed.StartsWith("索引 :", StringComparison.OrdinalIgnoreCase))
+            if (int.TryParse(indexMatches[i].Groups[1].Value, out var index))
             {
-                var parts = line.Split(':');
-                if (parts.Length >= 2 && int.TryParse(parts[1].Trim(), out var idx))
+                string name = $"版本 {index}";
+                if (i < nameMatches.Count)
                 {
-                    currentIndex = idx;
+                    name = nameMatches[i].Groups[1].Value.Trim();
                 }
-            }
-            // 支持中英文: "Name :" / "名称 :"
-            else if (trimmed.StartsWith("Name :", StringComparison.OrdinalIgnoreCase) ||
-                     trimmed.StartsWith("名称 :", StringComparison.OrdinalIgnoreCase))
-            {
-                var parts = line.Split(':');
-                if (parts.Length >= 2)
-                {
-                    currentName = parts[1].Trim();
-                    if (currentIndex > 0 && !string.IsNullOrEmpty(currentName))
-                    {
-                        images.Add(new ImageInfo { Index = currentIndex, Name = currentName });
-                    }
-                }
+                images.Add(new ImageInfo { Index = index, Name = name });
             }
         }
         
