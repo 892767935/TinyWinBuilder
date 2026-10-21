@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
@@ -14,6 +15,8 @@ namespace TinyWinBuilder.App.Views;
 public partial class MainWindow : Window
 {
     private readonly ImageManager _imageMgr = new();
+    private string? _mountedIsoPath;
+    private DriveInfo? _isoDrive;
 
     public List<AppItem> Apps { get; set; } = new()
     {
@@ -56,13 +59,13 @@ public partial class MainWindow : Window
         FeaturesList.ItemsSource = Features;
         TweaksList.ItemsSource = Tweaks;
         Log("TinyWin Builder 已启动。请选择左侧功能开始。");
+        Log("提示：需要管理员权限才能挂载和修改镜像。");
     }
 
     private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (NavList.SelectedItem is not ListBoxItem) return;
         
-        // XAML 加载时控件可能还没初始化，先检查空值
         if (ImagePanel == null || AppsPanel == null || FeaturesPanel == null || 
             TweaksPanel == null || UnattendedPanel == null || ApplyPanel == null)
             return;
@@ -77,7 +80,7 @@ public partial class MainWindow : Window
 
     private void BrowseWim_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFileDialog { Filter = "WIM 镜像|*.wim|ISO 镜像|*.iso|所有文件|*.*" };
+        var dlg = new OpenFileDialog { Filter = "镜像文件|*.iso;*.wim|ISO 镜像|*.iso|WIM 镜像|*.wim|所有文件|*.*" };
         if (dlg.ShowDialog() == true)
         {
             WimPathBox.Text = dlg.FileName;
@@ -89,22 +92,82 @@ public partial class MainWindow : Window
     {
         if (string.IsNullOrEmpty(WimPathBox.Text))
         {
-            MessageBox.Show("请先选择 WIM 镜像文件！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("请先选择镜像文件！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         try
         {
-            Log("正在挂载镜像...");
-            await _imageMgr.MountAsync(WimPathBox.Text, 1, Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount"));
             MountBtn.IsEnabled = false;
+            var ext = Path.GetExtension(WimPathBox.Text).ToLower();
+
+            if (ext == ".iso")
+            {
+                Log("正在挂载 ISO 镜像...");
+                await MountIsoAsync(WimPathBox.Text);
+                
+                var wimPath = Path.Combine(_isoDrive!.RootDirectory.FullName, "sources", "install.wim");
+                if (!File.Exists(wimPath))
+                {
+                    wimPath = Path.Combine(_isoDrive.RootDirectory.FullName, "sources", "install.esd");
+                }
+                
+                Log($"找到镜像文件: {wimPath}");
+                Log("正在挂载 WIM 镜像...");
+                
+                var images = await _imageMgr.GetImageIndexesAsync(wimPath);
+                ImageIndexCombo.ItemsSource = images;
+                ImageIndexCombo.DisplayMemberPath = "Name";
+                ImageIndexCombo.SelectedIndex = 0;
+                
+                var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
+                await _imageMgr.MountAsync(wimPath, 1, mountDir);
+            }
+            else if (ext == ".wim")
+            {
+                Log("正在挂载 WIM 镜像...");
+                var images = await _imageMgr.GetImageIndexesAsync(WimPathBox.Text);
+                ImageIndexCombo.ItemsSource = images;
+                ImageIndexCombo.DisplayMemberPath = "Name";
+                ImageIndexCombo.SelectedIndex = 0;
+                
+                var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
+                await _imageMgr.MountAsync(WimPathBox.Text, 1, mountDir);
+            }
+
             UnmountBtn.IsEnabled = true;
             Log("镜像挂载成功！");
+            Log("现在可以在左侧选择要精简的应用和功能了。");
         }
         catch (Exception ex)
         {
             Log($"挂载失败: {ex.Message}");
-            MessageBox.Show($"挂载失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show($"挂载失败: {ex.Message}\n\n请确保以管理员身份运行程序。", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            MountBtn.IsEnabled = true;
+        }
+    }
+
+    private async Task MountIsoAsync(string isoPath)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -Command \"(Mount-DiskImage -ImagePath '{isoPath}').DriveLetter\"",
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true
+        };
+        
+        var process = Process.Start(psi)!;
+        var output = await process.StandardOutput.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        
+        var driveLetter = output.Trim();
+        if (!string.IsNullOrEmpty(driveLetter))
+        {
+            _isoDrive = new DriveInfo(driveLetter + ":");
+            _mountedIsoPath = isoPath;
+            Log($"ISO 已挂载到盘符: {driveLetter}:");
         }
     }
 
@@ -112,40 +175,141 @@ public partial class MainWindow : Window
     {
         try
         {
-            Log("正在卸载镜像并提交更改...");
-            await _imageMgr.UnmountAsync(true);
-            MountBtn.IsEnabled = true;
             UnmountBtn.IsEnabled = false;
-            Log("镜像已卸载，更改已提交。");
+            Log("正在卸载镜像并提交更改...");
+            
+            if (_imageMgr.IsMounted)
+            {
+                await _imageMgr.UnmountAsync(true);
+                Log("WIM 镜像已卸载，更改已提交。");
+            }
+            
+            if (_isoDrive != null)
+            {
+                Log("正在卸载 ISO...");
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "powershell.exe",
+                    Arguments = $"-NoProfile -Command \"Dismount-DiskImage -ImagePath '{_mountedIsoPath}'\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                Process.Start(psi)!.WaitForExit();
+                Log("ISO 已卸载。");
+            }
+
+            MountBtn.IsEnabled = true;
+            Log("全部卸载完成。");
         }
         catch (Exception ex)
         {
             Log($"卸载失败: {ex.Message}");
             MessageBox.Show($"卸载失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            UnmountBtn.IsEnabled = true;
+        }
+    }
+
+    private async void Apply_Click(object sender, RoutedEventArgs e)
+    {
+        if (!_imageMgr.IsMounted)
+        {
+            MessageBox.Show("请先挂载镜像！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            ApplyPanel.IsEnabled = false;
+            Log("开始应用更改...");
+
+            // 移除勾选的预装应用
+            var appsToRemove = Apps.Where(a => a.IsChecked).ToList();
+            Log($"将移除 {appsToRemove.Count} 个预装应用...");
+            foreach (var app in appsToRemove)
+            {
+                Log($"  移除: {app.Name}");
+                await _imageMgr.RemoveProvisionedAppAsync(app.Id);
+            }
+
+            // 禁用勾选的系统功能
+            var featuresToDisable = Features.Where(f => f.IsChecked).ToList();
+            Log($"将禁用 {featuresToDisable.Count} 个系统功能...");
+            foreach (var feature in featuresToDisable)
+            {
+                Log($"  禁用: {feature.Name}");
+                await _imageMgr.DisableFeatureAsync(feature.Id);
+            }
+
+            // 清理组件存储
+            Log("正在清理组件存储...");
+            await _imageMgr.CleanupImageAsync();
+            Log("组件清理完成。");
+
+            Log("✅ 所有更改已应用！请点击「卸载并提交」保存更改。");
+            MessageBox.Show("所有更改已应用！\n\n请点击「图像」页面的「卸载并提交」按钮保存更改。", 
+                "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            Log($"应用更改失败: {ex.Message}");
+            MessageBox.Show($"应用更改失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        finally
+        {
+            ApplyPanel.IsEnabled = true;
         }
     }
 
     private void PreviewUnattended_Click(object sender, RoutedEventArgs e)
     {
-        Log("预览自动部署 XML...");
-        MessageBox.Show("自动部署 XML 预览功能开发中...", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        try
+        {
+            var settings = new UnattendedSettings
+            {
+                Username = UaUsername.Text,
+                AutoLoginCount = int.TryParse(UaAutoLogin.Text, out var count) ? count : 1
+            };
+            var xml = UnattendedGenerator.Generate(settings);
+            Log("自动部署 XML 预览...");
+            MessageBox.Show(xml, "autounattend.xml 预览", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            Log($"预览失败: {ex.Message}");
+        }
     }
 
     private void SaveUnattended_Click(object sender, RoutedEventArgs e)
     {
-        Log("保存 autounattend.xml...");
-        MessageBox.Show("保存自动部署文件功能开发中...", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
-    }
-
-    private void Apply_Click(object sender, RoutedEventArgs e)
-    {
-        Log("应用更改功能开发中...");
-        MessageBox.Show("应用更改功能开发中...", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+        try
+        {
+            var settings = new UnattendedSettings
+            {
+                Username = UaUsername.Text,
+                AutoLoginCount = int.TryParse(UaAutoLogin.Text, out var count) ? count : 1
+            };
+            var xml = UnattendedGenerator.Generate(settings);
+            
+            var dlg = new SaveFileDialog { Filter = "XML 文件|*.xml", FileName = "autounattend.xml" };
+            if (dlg.ShowDialog() == true)
+            {
+                File.WriteAllText(dlg.FileName, xml);
+                Log($"自动部署文件已保存: {dlg.FileName}");
+                MessageBox.Show("自动部署文件已保存！\n\n将此文件放在 ISO 根目录下即可实现无人值守安装。", 
+                    "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"保存失败: {ex.Message}");
+            MessageBox.Show($"保存失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void Log(string msg)
     {
         LogBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+        LogBox.ScrollToEnd();
     }
 }
 
