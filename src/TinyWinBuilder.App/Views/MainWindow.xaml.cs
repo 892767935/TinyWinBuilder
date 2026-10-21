@@ -273,15 +273,22 @@ try {
         try
         {
             UnmountBtn.IsEnabled = false;
-            Log("正在卸载镜像并提交更改...");
+            Log("正在清理...");
             
+            // 1. 卸载 WIM 镜像（如果还挂载着）
             if (_imageMgr.IsMounted)
             {
+                Log("正在卸载 WIM 镜像...");
                 await _imageMgr.UnmountAsync(true);
-                Log("WIM 镜像已卸载，更改已提交。");
+                Log("WIM 镜像已卸载。");
+            }
+            else
+            {
+                Log("WIM 镜像已卸载。");
             }
             
-            if (_isoDrive != null)
+            // 2. 卸载 ISO
+            if (_isoDrive != null && !string.IsNullOrEmpty(_mountedIsoPath))
             {
                 Log("正在卸载 ISO...");
                 var psi = new ProcessStartInfo
@@ -293,15 +300,46 @@ try {
                 };
                 Process.Start(psi)!.WaitForExit();
                 Log("ISO 已卸载。");
+                _isoDrive = null;
+                _mountedIsoPath = null;
+            }
+            
+            // 3. 清理临时文件
+            Log("正在清理临时文件...");
+            try
+            {
+                var workDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "TinyWinBuilder_Work");
+                if (Directory.Exists(workDir))
+                {
+                    Directory.Delete(workDir, true);
+                    Log("临时文件已清理。");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"清理临时文件失败（可手动删除）: {ex.Message}");
             }
 
+            // 4. 重置所有按钮状态
             MountBtn.IsEnabled = true;
-            Log("全部卸载完成。");
+            ApplyBtn.IsEnabled = false;
+            CommitBtn.IsEnabled = false;
+            ExportWimBtn.IsEnabled = false;
+            ExportIsoBtn.IsEnabled = false;
+            UnmountBtn.IsEnabled = false;
+            
+            // 清空镜像选择
+            WimPathBox.Text = "";
+            ImageIndexCombo.ItemsSource = null;
+            _localWimPath = null;
+            _originalWimPath = null;
+
+            Log("✅ 全部清理完成！可以选择新的镜像开始下一次操作。");
         }
         catch (Exception ex)
         {
-            Log($"卸载失败: {ex.Message}");
-            MessageBox.Show($"卸载失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            Log($"清理失败: {ex.Message}");
+            MessageBox.Show($"清理失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             UnmountBtn.IsEnabled = true;
         }
     }
