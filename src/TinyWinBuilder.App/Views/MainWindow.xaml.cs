@@ -61,6 +61,12 @@ public partial class MainWindow : Window
     private void NavList_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         if (NavList.SelectedItem is not ListBoxItem) return;
+        
+        // XAML 加载时控件可能还没初始化，先检查空值
+        if (ImagePanel == null || AppsPanel == null || FeaturesPanel == null || 
+            TweaksPanel == null || UnattendedPanel == null || ApplyPanel == null)
+            return;
+
         var panels = new[] { ImagePanel, AppsPanel, FeaturesPanel, TweaksPanel, UnattendedPanel, ApplyPanel };
         foreach (var p in panels) p.Visibility = Visibility.Collapsed;
 
