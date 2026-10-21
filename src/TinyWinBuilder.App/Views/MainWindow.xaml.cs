@@ -106,19 +106,32 @@ public partial class MainWindow : Window
                 Log("正在挂载 ISO 镜像...");
                 await MountIsoAsync(WimPathBox.Text);
                 
-                var wimPath = Path.Combine(_isoDrive!.RootDirectory.FullName, "sources", "install.wim");
+                if (_isoDrive == null)
+                {
+                    throw new InvalidOperationException("ISO 挂载失败，未获取到盘符");
+                }
+                
+                var wimPath = Path.Combine(_isoDrive.RootDirectory.FullName, "sources", "install.wim");
                 if (!File.Exists(wimPath))
                 {
                     wimPath = Path.Combine(_isoDrive.RootDirectory.FullName, "sources", "install.esd");
                 }
                 
+                if (!File.Exists(wimPath))
+                {
+                    throw new FileNotFoundException($"在 ISO 中未找到 install.wim 或 install.esd");
+                }
+                
                 Log($"找到镜像文件: {wimPath}");
-                Log("正在挂载 WIM 镜像...");
+                Log("正在读取镜像版本列表...");
                 
                 var images = await _imageMgr.GetImageIndexesAsync(wimPath);
                 ImageIndexCombo.ItemsSource = images;
                 ImageIndexCombo.DisplayMemberPath = "Name";
                 ImageIndexCombo.SelectedIndex = 0;
+                
+                Log($"找到 {images.Count} 个版本");
+                Log("正在挂载 WIM 镜像...");
                 
                 var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
                 await _imageMgr.MountAsync(wimPath, 1, mountDir);
@@ -149,26 +162,51 @@ public partial class MainWindow : Window
 
     private async Task MountIsoAsync(string isoPath)
     {
+        // 先用 PowerShell 挂载 ISO，然后获取盘符
+        var script = @"
+$isoPath = '" + isoPath + @"'
+try {
+    $result = Mount-DiskImage -ImagePath $isoPath -PassThru
+    Start-Sleep -Seconds 2
+    $driveLetter = ($result | Get-Volume).DriveLetter
+    Write-Output $driveLetter
+} catch {
+    Write-Output 'ERROR:' + $_.Exception.Message
+}
+";
+
         var psi = new ProcessStartInfo
         {
             FileName = "powershell.exe",
-            Arguments = $"-NoProfile -Command \"(Mount-DiskImage -ImagePath '{isoPath}').DriveLetter\"",
+            Arguments = $"-NoProfile -Command \"{script}\"",
             UseShellExecute = false,
             CreateNoWindow = true,
-            RedirectStandardOutput = true
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         
         var process = Process.Start(psi)!;
         var output = await process.StandardOutput.ReadToEndAsync();
+        var error = await process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
         
-        var driveLetter = output.Trim();
-        if (!string.IsNullOrEmpty(driveLetter))
+        output = output.Trim();
+        Log($"PowerShell 输出: {output}");
+        
+        if (output.StartsWith("ERROR:"))
         {
-            _isoDrive = new DriveInfo(driveLetter + ":");
-            _mountedIsoPath = isoPath;
-            Log($"ISO 已挂载到盘符: {driveLetter}:");
+            throw new InvalidOperationException(output.Substring(6));
         }
+        
+        var driveLetter = output.Trim();
+        if (string.IsNullOrEmpty(driveLetter) || driveLetter.Length != 1)
+        {
+            throw new InvalidOperationException("无法获取 ISO 盘符，可能挂载失败");
+        }
+        
+        _isoDrive = new DriveInfo(driveLetter + ":");
+        _mountedIsoPath = isoPath;
+        Log($"ISO 已挂载到盘符: {driveLetter}:");
     }
 
     private async void Unmount_Click(object sender, RoutedEventArgs e)
