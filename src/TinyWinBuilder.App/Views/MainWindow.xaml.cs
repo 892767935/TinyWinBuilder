@@ -78,6 +78,8 @@ public partial class MainWindow : Window
             panels[idx].Visibility = Visibility.Visible;
     }
 
+    private string? _localWimPath;
+
     private void BrowseWim_Click(object sender, RoutedEventArgs e)
     {
         var dlg = new OpenFileDialog { Filter = "镜像文件|*.iso;*.wim|ISO 镜像|*.iso|WIM 镜像|*.wim|所有文件|*.*" };
@@ -85,26 +87,23 @@ public partial class MainWindow : Window
         {
             WimPathBox.Text = dlg.FileName;
             Log($"已选择镜像: {dlg.FileName}");
+            
+            // 自动加载镜像版本列表
+            _ = LoadImageVersionsAsync(dlg.FileName);
         }
     }
 
-    private async void Mount_Click(object sender, RoutedEventArgs e)
+    private async Task LoadImageVersionsAsync(string imagePath)
     {
-        if (string.IsNullOrEmpty(WimPathBox.Text))
-        {
-            MessageBox.Show("请先选择镜像文件！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
-            return;
-        }
-
         try
         {
             MountBtn.IsEnabled = false;
-            var ext = Path.GetExtension(WimPathBox.Text).ToLower();
+            var ext = Path.GetExtension(imagePath).ToLower();
 
             if (ext == ".iso")
             {
                 Log("正在挂载 ISO 镜像...");
-                await MountIsoAsync(WimPathBox.Text);
+                await MountIsoAsync(imagePath);
                 
                 if (_isoDrive == null)
                 {
@@ -124,56 +123,75 @@ public partial class MainWindow : Window
                 
                 Log($"在 ISO 中找到镜像文件: {isoWimPath}");
                 
-                // 关键：把 WIM 复制到本地磁盘，因为 ISO 是只读的
-                Log("正在将 WIM 复制到本地磁盘（ISO 是只读的，需要先复制出来）...");
-                var localWimPath = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_install.wim");
+                // 把 WIM 复制到本地磁盘（ISO 是只读的）
+                Log("正在将 WIM 复制到本地磁盘...");
+                _localWimPath = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_install.wim");
                 
-                if (File.Exists(localWimPath))
+                if (File.Exists(_localWimPath))
                 {
-                    File.Delete(localWimPath);
+                    File.Delete(_localWimPath);
                 }
                 
-                // 显示进度
                 var fileInfo = new FileInfo(isoWimPath);
                 Log($"文件大小: {fileInfo.Length / 1024 / 1024:.0} MB，请稍候...");
                 
-                File.Copy(isoWimPath, localWimPath);
+                File.Copy(isoWimPath, _localWimPath);
                 Log("WIM 复制完成！");
                 
-                _originalWimPath = localWimPath;
-                Log("正在读取镜像版本列表...");
-                
-                var images = await _imageMgr.GetImageIndexesAsync(localWimPath);
-                ImageIndexCombo.ItemsSource = images;
-                ImageIndexCombo.DisplayMemberPath = "Name";
-                ImageIndexCombo.SelectedIndex = 0;
-                
-                Log($"找到 {images.Count} 个版本");
-                Log("正在挂载 WIM 镜像...");
-                
-                var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
-                if (Directory.Exists(mountDir))
-                {
-                    Directory.Delete(mountDir, true);
-                }
-                Directory.CreateDirectory(mountDir);
-                
-                await _imageMgr.MountAsync(localWimPath, 1, mountDir);
+                _originalWimPath = _localWimPath;
             }
             else if (ext == ".wim")
             {
-                Log("正在挂载 WIM 镜像...");
-                _originalWimPath = WimPathBox.Text;
-                var images = await _imageMgr.GetImageIndexesAsync(WimPathBox.Text);
-                ImageIndexCombo.ItemsSource = images;
-                ImageIndexCombo.DisplayMemberPath = "Name";
-                ImageIndexCombo.SelectedIndex = 0;
-                
-                var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
-                await _imageMgr.MountAsync(WimPathBox.Text, 1, mountDir);
+                _localWimPath = imagePath;
+                _originalWimPath = imagePath;
             }
 
-            UnmountBtn.IsEnabled = true;
+            Log("正在读取镜像版本列表...");
+            var images = await _imageMgr.GetImageIndexesAsync(_localWimPath);
+            ImageIndexCombo.ItemsSource = images;
+            ImageIndexCombo.DisplayMemberPath = "Name";
+            ImageIndexCombo.SelectedIndex = 0;
+            
+            Log($"找到 {images.Count} 个版本，请在下拉框中选择后点击「挂载镜像」");
+            MountBtn.IsEnabled = true;
+        }
+        catch (Exception ex)
+        {
+            Log($"加载镜像失败: {ex.Message}");
+            MessageBox.Show($"加载镜像失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            MountBtn.IsEnabled = true;
+        }
+    }
+
+    private async void Mount_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrEmpty(_localWimPath))
+        {
+            MessageBox.Show("请先选择镜像文件！", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+
+        try
+        {
+            MountBtn.IsEnabled = false;
+            
+            // 获取用户选择的版本
+            var selectedImage = ImageIndexCombo.SelectedItem as ImageInfo;
+            var imageIndex = selectedImage?.Index ?? 1;
+            var imageName = selectedImage?.Name ?? "未知版本";
+            
+            Log($"正在挂载 WIM 镜像: {imageName} (Index: {imageIndex})...");
+            
+            var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
+            if (Directory.Exists(mountDir))
+            {
+                Directory.Delete(mountDir, true);
+            }
+            Directory.CreateDirectory(mountDir);
+            
+            await _imageMgr.MountAsync(_localWimPath, imageIndex, mountDir);
+
+            ApplyBtn.IsEnabled = true;
             Log("镜像挂载成功！");
             Log("现在可以在左侧选择要精简的应用和功能了。");
         }
