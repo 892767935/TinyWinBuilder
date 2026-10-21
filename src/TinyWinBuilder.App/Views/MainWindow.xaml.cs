@@ -725,32 +725,44 @@ try {
     private void SelectAllApps_Click(object sender, RoutedEventArgs e)
     {
         foreach (var app in Apps) app.IsChecked = true;
+        AppsList.ItemsSource = null;
+        AppsList.ItemsSource = Apps;
     }
 
     private void InvertApps_Click(object sender, RoutedEventArgs e)
     {
         foreach (var app in Apps) app.IsChecked = !app.IsChecked;
+        AppsList.ItemsSource = null;
+        AppsList.ItemsSource = Apps;
     }
 
     private void ClearApps_Click(object sender, RoutedEventArgs e)
     {
         foreach (var app in Apps) app.IsChecked = false;
+        AppsList.ItemsSource = null;
+        AppsList.ItemsSource = Apps;
     }
 
     // 系统功能的全选/反选/清空
     private void SelectAllFeatures_Click(object sender, RoutedEventArgs e)
     {
         foreach (var f in Features) f.IsChecked = true;
+        FeaturesList.ItemsSource = null;
+        FeaturesList.ItemsSource = Features;
     }
 
     private void InvertFeatures_Click(object sender, RoutedEventArgs e)
     {
         foreach (var f in Features) f.IsChecked = !f.IsChecked;
+        FeaturesList.ItemsSource = null;
+        FeaturesList.ItemsSource = Features;
     }
 
     private void ClearFeatures_Click(object sender, RoutedEventArgs e)
     {
         foreach (var f in Features) f.IsChecked = false;
+        FeaturesList.ItemsSource = null;
+        FeaturesList.ItemsSource = Features;
     }
 
     private void Log(string msg)
