@@ -306,8 +306,9 @@ try {
             Log("现在可以导出精简后的镜像了。");
             
             // 启用导出按钮和卸载按钮
+            ExportWimBtn.IsEnabled = true;
+            ExportIsoBtn.IsEnabled = true;
             UnmountBtn.IsEnabled = true;
-            // TODO: 启用导出按钮
         }
         catch (Exception ex)
         {

@@ -156,8 +156,8 @@
                                 <TextBlock Text="步骤 3：导出镜像" FontWeight="Bold" Foreground="#1565C0"/>
                                 <TextBlock Text="导出一个新的、更小的精简版 ISO 文件" FontSize="12" Foreground="#666" Margin="0,4,0,0"/>
                                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                    <Button Content="导出 WIM" Click="ExportWim_Click" Padding="20,6" Margin="0,0,8,0" IsEnabled="False"/>
-                                    <Button Content="导出 ISO" Click="ExportIso_Click" Padding="20,6" Background="#1976D2" Foreground="White" IsEnabled="False"/>
+                                    <Button x:Name="ExportWimBtn" Content="导出 WIM" Click="ExportWim_Click" Padding="20,6" Margin="0,0,8,0" IsEnabled="False"/>
+                                    <Button x:Name="ExportIsoBtn" Content="导出 ISO" Click="ExportIso_Click" Padding="20,6" Background="#1976D2" Foreground="White" IsEnabled="False"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
