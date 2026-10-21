@@ -111,22 +111,39 @@ public partial class MainWindow : Window
                     throw new InvalidOperationException("ISO 挂载失败，未获取到盘符");
                 }
                 
-                var wimPath = Path.Combine(_isoDrive.RootDirectory.FullName, "sources", "install.wim");
-                if (!File.Exists(wimPath))
+                var isoWimPath = Path.Combine(_isoDrive.RootDirectory.FullName, "sources", "install.wim");
+                if (!File.Exists(isoWimPath))
                 {
-                    wimPath = Path.Combine(_isoDrive.RootDirectory.FullName, "sources", "install.esd");
+                    isoWimPath = Path.Combine(_isoDrive.RootDirectory.FullName, "sources", "install.esd");
                 }
                 
-                if (!File.Exists(wimPath))
+                if (!File.Exists(isoWimPath))
                 {
                     throw new FileNotFoundException($"在 ISO 中未找到 install.wim 或 install.esd");
                 }
                 
-                Log($"找到镜像文件: {wimPath}");
-                _originalWimPath = wimPath;
+                Log($"在 ISO 中找到镜像文件: {isoWimPath}");
+                
+                // 关键：把 WIM 复制到本地磁盘，因为 ISO 是只读的
+                Log("正在将 WIM 复制到本地磁盘（ISO 是只读的，需要先复制出来）...");
+                var localWimPath = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_install.wim");
+                
+                if (File.Exists(localWimPath))
+                {
+                    File.Delete(localWimPath);
+                }
+                
+                // 显示进度
+                var fileInfo = new FileInfo(isoWimPath);
+                Log($"文件大小: {fileInfo.Length / 1024 / 1024:.0} MB，请稍候...");
+                
+                File.Copy(isoWimPath, localWimPath);
+                Log("WIM 复制完成！");
+                
+                _originalWimPath = localWimPath;
                 Log("正在读取镜像版本列表...");
                 
-                var images = await _imageMgr.GetImageIndexesAsync(wimPath);
+                var images = await _imageMgr.GetImageIndexesAsync(localWimPath);
                 ImageIndexCombo.ItemsSource = images;
                 ImageIndexCombo.DisplayMemberPath = "Name";
                 ImageIndexCombo.SelectedIndex = 0;
@@ -135,7 +152,13 @@ public partial class MainWindow : Window
                 Log("正在挂载 WIM 镜像...");
                 
                 var mountDir = Path.Combine(Path.GetTempPath(), "TinyWinBuilder_Mount");
-                await _imageMgr.MountAsync(wimPath, 1, mountDir);
+                if (Directory.Exists(mountDir))
+                {
+                    Directory.Delete(mountDir, true);
+                }
+                Directory.CreateDirectory(mountDir);
+                
+                await _imageMgr.MountAsync(localWimPath, 1, mountDir);
             }
             else if (ext == ".wim")
             {
